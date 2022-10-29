@@ -465,6 +465,7 @@ def main():
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
+    args.revision=""
     # Load the tokenizer
     if args.tokenizer_name:
         tokenizer = CLIPTokenizer.from_pretrained(
