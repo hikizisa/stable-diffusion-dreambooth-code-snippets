@@ -290,7 +290,6 @@ class DreamBoothDataset(Dataset):
                 self.class_images_path.extend(class_img_path[:num_class_images])
 
         random.shuffle(self.instance_images_path)
-        random.shuffle(self.class_images_path)
         self.num_instance_images = len(self.instance_images_path)
         self._length = self.num_instance_images
         self.num_class_images = len(self.class_images_path)
@@ -391,8 +390,7 @@ def get_full_repo_name(model_id: str, organization: Optional[str] = None, token:
         return f"{organization}/{model_id}"
 
 
-def main():
-    args = parse_args()
+def main(args):
     logging_dir = Path(args.output_dir, "0", args.logging_dir)
 
     accelerator = Accelerator(
@@ -439,9 +437,10 @@ def main():
                 if pipeline is None:
                     pipeline = StableDiffusionPipeline.from_pretrained(
                         args.pretrained_model_name_or_path,
-                        vae=AutoencoderKL.from_pretrained(args.pretrained_vae_name_or_path or args.pretrained_model_name_or_path),
+                        vae=AutoencoderKL.from_pretrained(args.pretrained_vae_name_or_path or args.pretrained_model_name_or_path, revision=args.revision),
                         torch_dtype=torch_dtype,
                         safety_checker=None,
+                        revision=args.revision
                     )
                     pipeline.set_progress_bar_config(disable=True)
                     pipeline.to(accelerator.device)
@@ -665,16 +664,17 @@ def main():
             if args.train_text_encoder:
                 text_enc_model = accelerator.unwrap_model(text_encoder)
             else:
-                text_enc_model = CLIPTextModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="text_encoder")
+                text_enc_model = CLIPTextModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision)
             scheduler = DDIMScheduler(beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", clip_sample=False, set_alpha_to_one=False)
             pipeline = StableDiffusionPipeline.from_pretrained(
                 args.pretrained_model_name_or_path,
                 unet=accelerator.unwrap_model(unet),
                 text_encoder=text_enc_model,
-                vae=AutoencoderKL.from_pretrained(args.pretrained_vae_name_or_path or args.pretrained_model_name_or_path, subfolder=None if args.pretrained_vae_name_or_path else "vae"),
+                vae=AutoencoderKL.from_pretrained(args.pretrained_vae_name_or_path or args.pretrained_model_name_or_path, subfolder=None if args.pretrained_vae_name_or_path else "vae", revision=args.revision),
                 safety_checker=None,
                 scheduler=scheduler,
                 torch_dtype=torch.float16,
+                revision=args.revision,
             )
             save_dir = os.path.join(args.output_dir, f"{step}")
             pipeline.save_pretrained(save_dir)
@@ -780,7 +780,7 @@ def main():
                 progress_bar.set_postfix(**logs)
                 accelerator.log(logs, step=global_step)
 
-            if global_step > args.save_min_steps and not global_step % args.save_interval:
+            if global_step > 0 and not global_step % args.save_interval and global_step > args.save_min_steps:
                 save_weights(global_step)
 
             progress_bar.update(1)
@@ -797,4 +797,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)
