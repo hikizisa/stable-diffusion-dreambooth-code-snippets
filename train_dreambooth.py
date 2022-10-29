@@ -48,6 +48,13 @@ def parse_args(input_args=None):
         help="Path to pretrained vae or vae identifier from huggingface.co/models.",
     )
     parser.add_argument(
+        "--revision",
+        type=str,
+        default="fp16",
+        required=False,
+        help="Revision of pretrained model identifier from huggingface.co/models.",
+    )
+    parser.add_argument(
         "--tokenizer_name",
         type=str,
         default=None,
@@ -465,7 +472,6 @@ def main():
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-    args.revision=""
     # Load the tokenizer
     if args.tokenizer_name:
         tokenizer = CLIPTokenizer.from_pretrained(
